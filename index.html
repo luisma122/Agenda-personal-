@@ -21,14 +21,12 @@
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 pb-12">
-        
         <header class="text-center mb-10">
             <h2 class="text-3xl font-extrabold text-gray-800 sm:text-4xl">Mi Horario y Eventos</h2>
             <p class="mt-4 text-lg text-gray-600">Gestión de actividades diarias sincronizadas en tiempo real.</p>
         </header>
 
         <section class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-            
             <div class="bg-orange-500 p-4 flex justify-between items-center text-white">
                 <span class="font-semibold flex items-center gap-2">
                     <i class="fas fa-sync-alt animate-spin-slow"></i> Google Calendar Activo
@@ -48,11 +46,10 @@
 
         <footer class="mt-12 text-center text-gray-400 text-sm">
             <p>© 2026 Luisma122 - Desarrollado con HTML y Tailwind CSS</p>
-        </div>
+        </footer>
     </main>
 
     <style>
-        /* Animación suave para el icono de carga */
         @keyframes spin-slow {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -60,17 +57,10 @@
         .animate-spin-slow {
             animation: spin-slow 8s linear infinite;
         }
-
-        /* Ajustes para móviles */
         @media (max-width: 640px) {
-            section {
-                border-radius: 1rem;
-            }
-            main {
-                padding-top: 1rem;
-            }
+            section { border-radius: 1rem; }
+            main { padding-top: 1rem; }
         }
     </style>
-
 </body>
 </html>
