@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Agenda Personal - Automatizada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'earth': {
+                            '50': '#f4f3ee', '100': '#edede9', '200': '#f5ebe0', '300': '#e3d5ca',
+                            '400': '#d6ccc2', '500': '#d5bdaf', '600': '#e0afa0', '700': '#bcb8b1',
+                            '800': '#8a817c', '900': '#463f3a',
+                        },
+                    },
+                    animation: {
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                        'fade-in': 'fadeIn 0.3s ease-in forwards',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        slideUp: { '0%': { transform: 'translateY(10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f4f3ee;
+            background-image: radial-gradient(circle at top right, #edede9, #f4f3ee);
+            min-height: 100vh;
+            color: #463f3a;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid #e3d5ca;
+            box-shadow: 0 8px 32px 0 rgba(70, 63, 58, 0.05);
+        }
+
+        .notebook-checkbox {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .notebook-checkbox input { position: absolute; opacity: 0; cursor: pointer; }
+
+        .notebook-checkbox .checkmark {
+            position: relative;
+            height: 1.25rem;
+            width: 1.25rem;
+            border-radius: 6px;
+            border: 2px solid #d6ccc2;
+            background: #ffffff;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .notebook-checkbox input:checked ~ .checkmark {
+            background-color: #10b981; 
+            border-color: #10b981;
+        }
+
+        .notebook-checkbox .checkmark::after {
+            content: "";
+            position: absolute;
+            display: none;
+            left: 6px;
+            top: 2px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        .notebook-checkbox input:checked ~ .checkmark::after { display: block; }
+
+        .notebook-checkbox .text-wrapper {
+            position: relative;
+            z-index: 1;
+            transition: color 0.3s ease;
+            display: inline-block;
+            margin-left: 0.75rem;
+        }
+
+        .notebook-checkbox .cut-line {
+            position: absolute;
+            left: -2px;
+            right: 0;
+            top: 50%;
+            height: 2px;
+            width: calc(100% + 4px);
+            pointer-events: none;
+            background-color: #8a817c;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0.6;
+        }
+
+        .notebook-checkbox input:checked ~ .text-wrapper .cut-line { transform: scaleX(1); }
+        .notebook-checkbox input:checked ~ .text-wrapper { color: #bcb8b1; }
+
+        .btn-earth-save {
+            background: #e0afa0;
+            color: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(224, 175, 160, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-earth-save:hover {
+            background: #d5bdaf;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(213, 189, 175, 0.4);
+        }
+
+        .calendar-day.has-tasks::after {
+            content: '';
+            position: absolute;
+            bottom: 6px;
+            width: 4px;
+            height: 4px;
+            background-color: #e0afa0;
+            border-radius: 50%;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d6ccc2; border-radius: 10px; }
+
+        .automation-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 99px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 800;
+        }
+
+        /* Indicadores de color por estado */
+        .status-red { background-color: #ef4444; }
+        .status-yellow { background-color: #f59e0b; }
+        .status-green { background-color: #10b981; }
+    </style>
+</head>
+<body class="text-earth-900">
+
+    <nav class="sticky top-0 z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto glass-panel rounded-2xl px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-earth-900 rounded-xl flex items-center justify-center shadow-lg">
+                    <i data-lucide="zap" class="text-earth-600 w-6 h-6 animate-pulse-slow"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold leading-none text-earth-900">Agenda Smart</h1>
+                    <span class="text-[10px] uppercase tracking-[0.2em] text-earth-600 font-bold flex items-center">
+                        Sync n8n activa 
+                        <span class="ml-2 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    </span>
+                </div>
+            </div>
+            <div id="current-date-nav" class="hidden lg:block text-sm font-semibold text-earth-800"></div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-6 md:p-8 animate-fade-in">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Columna Izquierda -->
+            <div class="lg:col-span-4 space-y-8">
+                <section class="glass-panel p-8 rounded-[2rem]">
+                    <h2 class="text-xl font-bold mb-6 text-earth-900 flex items-center">
+                        <i data-lucide="plus-circle" class="mr-2 w-5 h-5 text-earth-600"></i>
+                        Nuevo Evento / Nota
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[10px] font-bold text-earth-800 uppercase ml-1">Tarea o Nota de Keep</label>
+                            <input type="text" id="task-input" placeholder="Ej: Comprar materiales" 
+                                class="w-full bg-white/80 border-2 border-earth-100 rounded-2xl px-5 py-3 focus:outline-none focus:border-earth-500 transition-all text-earth-900 placeholder:text-earth-700">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] font-bold text-earth-800 uppercase ml-1">Fecha</label>
+                                <input type="date" id="task-date" class="w-full bg-white/80 border-2 border-earth-100 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-earth-500 transition-all">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-earth-800 uppercase ml-1">Hora</label>
+                                <input type="time" id="task-time" class="w-full bg-white/80 border-2 border-earth-100 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-earth-500 transition-all">
+                            </div>
+                        </div>
+                        <button onclick="addTask()" class="btn-earth-save w-full mt-2">
+                            <span>Sincronizar Todo</span>
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Configuración n8n -->
+                <section class="glass-panel p-6 rounded-[2rem] bg-earth-900/5 border-dashed border-2 border-earth-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xs font-black uppercase tracking-widest text-earth-900">Webhook Sync</h3>
+                        <i data-lucide="settings" class="w-4 h-4 text-earth-500"></i>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="bg-white/50 p-3 rounded-xl">
+                            <label class="text-[9px] font-bold text-earth-800 uppercase">n8n Endpoint</label>
+                            <input type="text" id="n8n-url" placeholder="https://..." 
+                                class="w-full bg-transparent border-none text-[10px] focus:ring-0 p-0 text-earth-600 italic">
+                        </div>
+                        <p class="text-[9px] text-earth-700 leading-relaxed px-1">
+                            * Se enviará a <b>Google Calendar</b> y se creará una nota en <b>Google Keep</b>.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Lista de Pendientes -->
+                <section class="space-y-4">
+                    <div class="flex items-center justify-between px-2">
+                        <div class="flex items-center space-x-2">
+                            <h3 id="list-title" class="font-bold text-earth-900 uppercase text-xs tracking-widest">Lista Local</h3>
+                            <div class="flex space-x-1">
+                                <div class="w-1.5 h-1.5 rounded-full status-red" title="Atrasado"></div>
+                                <div class="w-1.5 h-1.5 rounded-full status-yellow" title="Pendiente"></div>
+                                <div class="w-1.5 h-1.5 rounded-full status-green" title="Hecho"></div>
+                            </div>
+                        </div>
+                        <button id="reset-filter" onclick="resetFilter()" class="hidden text-[10px] font-bold text-earth-600 uppercase flex items-center">
+                           <i data-lucide="eye" class="w-3 h-3 mr-1"></i> Ver todos
+                        </button>
+                    </div>
+                    <ul id="task-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar"></ul>
+                </section>
+            </div>
+
+            <!-- Columna Derecha -->
+            <div class="lg:col-span-8 space-y-8">
+                <!-- Calendario -->
+                <section class="glass-panel p-8 rounded-[2rem]">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-2xl font-black text-earth-900 capitalize" id="calendar-title">...</h2>
+                            <p class="text-sm text-earth-800 font-medium italic">Eventos y Notas Programadas</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="changeMonth(-1)" class="p-3 rounded-xl border border-earth-300 hover:bg-earth-500 hover:text-white transition-all">
+                                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                            </button>
+                            <button onclick="changeMonth(1)" class="p-3 rounded-xl border border-earth-300 hover:bg-earth-500 hover:text-white transition-all">
+                                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-7 gap-2 md:gap-4 mb-4" id="calendar-header"></div>
+                    <div class="grid grid-cols-7 gap-2 md:gap-4" id="calendar-grid"></div>
+                </section>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-earth-900 p-8 rounded-[2rem] text-earth-50 shadow-xl">
+                        <h4 class="text-sm font-bold opacity-60 uppercase tracking-widest mb-4">Multi-Sync</h4>
+                        <div class="space-y-4">
+                            <!-- Google Calendar -->
+                            <div class="flex items-center justify-between bg-white/5 p-3 rounded-xl">
+                                <div class="flex items-center space-x-3">
+                                    <i data-lucide="calendar" class="w-4 h-4 text-blue-400"></i>
+                                    <span class="text-xs font-bold">Google Calendar</span>
+                                </div>
+                                <span class="automation-badge bg-blue-500/20 text-blue-400">Sync On</span>
+                            </div>
+                            <!-- Google Keep -->
+                            <div class="flex items-center justify-between bg-white/5 p-3 rounded-xl">
+                                <div class="flex items-center space-x-3">
+                                    <i data-lucide="sticky-note" class="w-4 h-4 text-yellow-400"></i>
+                                    <span class="text-xs font-bold">Google Keep</span>
+                                </div>
+                                <span class="automation-badge bg-yellow-500/20 text-yellow-400">Keep Active</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-8 rounded-[2rem] border-l-8 border-l-earth-500 flex flex-col justify-center">
+                        <h4 class="text-sm font-bold text-earth-800 uppercase tracking-widest mb-2">Total Registros</h4>
+                        <p class="text-4xl font-black text-earth-900" id="total-tasks-count">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="alert-modal" class="fixed bottom-8 right-8 z-[100] transform translate-y-20 opacity-0 transition-all duration-500 pointer-events-none">
+        <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-earth-600 flex items-center space-x-4 shadow-2xl">
+            <div id="alert-icon" class="bg-earth-200 p-2 rounded-lg text-earth-900">
+                <i data-lucide="check" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <p class="text-sm font-bold text-earth-900" id="alert-title">Nota</p>
+                <p class="text-xs text-earth-800" id="alert-body">Actualización realizada.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('smalt_sync_tasks_keep_v1')) || [];
+        let webhookUrl = localStorage.getItem('n8n_webhook_url') || '';
+        let currentViewDate = new Date();
+        let selectedDateFilter = null;
+
+        window.onload = () => {
+            document.getElementById('task-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('n8n-url').value = webhookUrl;
+            
+            const headers = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            const headerContainer = document.getElementById('calendar-header');
+            headers.forEach(h => {
+                const div = document.createElement('div');
+                div.className = "text-[10px] font-black text-earth-700 uppercase tracking-widest text-center";
+                div.innerText = h;
+                headerContainer.appendChild(div);
+            });
+
+            renderTasks();
+            renderCalendar();
+            updateGlobalTime();
+            lucide.createIcons();
+
+            document.getElementById('n8n-url').addEventListener('change', (e) => {
+                webhookUrl = e.target.value;
+                localStorage.setItem('n8n_webhook_url', webhookUrl);
+                showAlert("Configuración", "URL de n8n actualizada.");
+            });
+        };
+
+        async function syncToN8N(taskData) {
+            if (!webhookUrl) return;
+
+            try {
+                // n8n ahora recibe instrucciones para Calendar y Keep
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'multi_sync',
+                        targets: ['google_calendar', 'google_keep'],
+                        source: 'personal_agenda_app',
+                        timestamp: new Date().toISOString(),
+                        data: {
+                            ...taskData,
+                            keep_label: "AgendaSmart",
+                            color: "yellow"
+                        }
+                    })
+                });
+                
+                if (response.ok) {
+                    showAlert("Sincronizado", "Evento y Nota enviados.");
+                } else {
+                    throw new Error("Error en el servidor");
+                }
+            } catch (error) {
+                console.error("Error sincronizando:", error);
+                showAlert("Error Sync", "Falla de conexión con n8n.", true);
+            }
+        }
+
+        function addTask() {
+            const input = document.getElementById('task-input');
+            const dateInput = document.getElementById('task-date');
+            const timeInput = document.getElementById('task-time');
+            
+            if (!input.value.trim() || !dateInput.value) {
+                showAlert("Datos incompletos", "Define la descripción y fecha.", true);
+                return;
+            }
+
+            const newTask = { 
+                id: Date.now(), 
+                text: input.value, 
+                date: dateInput.value, 
+                time: timeInput.value || "00:00",
+                completed: false 
+            };
+
+            tasks.push(newTask);
+            input.value = '';
+            
+            syncToN8N(newTask);
+            
+            if (selectedDateFilter) resetFilter();
+            else renderTasks();
+            
+            renderCalendar();
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('task-list');
+            list.innerHTML = '';
+            
+            let displayTasks = [...tasks].sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time));
+            if (selectedDateFilter) displayTasks = displayTasks.filter(t => t.date === selectedDateFilter);
+
+            if (displayTasks.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-earth-700 text-[10px] italic">Sin registros para hoy.</div>`;
+            }
+
+            const now = new Date();
+
+            displayTasks.forEach((task, index) => {
+                const li = document.createElement('li');
+                li.className = `task-item flex items-center justify-between p-4 rounded-2xl glass-panel animate-slide-up relative overflow-hidden`;
+                li.style.animationDelay = `${index * 0.05}s`;
+                
+                const taskDateTime = new Date(task.date + 'T' + task.time);
+                
+                let statusColorClass = 'status-yellow';
+                if (task.completed) {
+                    statusColorClass = 'status-green';
+                } else if (taskDateTime < now) {
+                    statusColorClass = 'status-red';
+                }
+
+                li.innerHTML = `
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 ${statusColorClass}"></div>
+                    <div class="flex items-center space-x-3 ml-2 w-full">
+                        <label class="notebook-checkbox w-full">
+                            <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id})">
+                            <span class="checkmark"></span>
+                            <span class="text-wrapper flex-grow">
+                                <span class="text-sm font-semibold relative inline-block">
+                                    ${task.text}
+                                    <span class="cut-line"></span>
+                                </span>
+                                <span class="block text-[9px] text-earth-800 font-bold mt-1">
+                                    <i data-lucide="sticky-note" class="w-2.5 h-2.5 inline mr-1 text-yellow-600"></i>
+                                    ${task.date.split('-').reverse().join('/')} - ${task.time}
+                                    ${statusColorClass === 'status-red' ? '<span class="ml-2 text-red-500 uppercase font-black">! Vencido</span>' : ''}
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                    <button onclick="deleteTask(${task.id})" class="text-earth-700 hover:text-red-400 transition-colors p-2 z-10">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+
+            document.getElementById('total-tasks-count').innerText = tasks.length;
+            saveData();
+            lucide.createIcons();
+        }
+
+        function toggleTask(id) {
+            tasks = tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t);
+            setTimeout(renderTasks, 300); 
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+            renderCalendar();
+        }
+
+        function filterByDate(dateStr) {
+            selectedDateFilter = dateStr;
+            const [y, m, d] = dateStr.split('-');
+            document.getElementById('list-title').innerText = `Día ${d}/${m}`;
+            document.getElementById('reset-filter').classList.remove('hidden');
+            renderTasks();
+            renderCalendar();
+        }
+
+        function resetFilter() {
+            selectedDateFilter = null;
+            document.getElementById('list-title').innerText = `Lista Local`;
+            document.getElementById('reset-filter').classList.add('hidden');
+            renderTasks();
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            const title = document.getElementById('calendar-title');
+            const year = currentViewDate.getFullYear();
+            const month = currentViewDate.getMonth();
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            
+            title.innerText = `${monthNames[month]} ${year}`;
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const lastDayDate = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+            
+            grid.innerHTML = '';
+            for (let i = 0; i < firstDayIndex; i++) grid.appendChild(document.createElement('div'));
+
+            for (let i = 1; i <= lastDayDate; i++) {
+                const dayDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const hasTasks = tasks.some(t => t.date === dayDateStr);
+                const isRealToday = i === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+                const isSelected = selectedDateFilter === dayDateStr;
+
+                const day = document.createElement('div');
+                day.className = `calendar-day h-12 md:h-14 rounded-2xl flex flex-col items-center justify-center cursor-pointer font-bold text-sm transition-all relative
+                    ${isRealToday ? 'ring-2 ring-earth-900 bg-earth-200' : ''} 
+                    ${isSelected ? 'bg-earth-900 text-earth-50 shadow-lg' : 'bg-white/40 text-earth-900 hover:bg-earth-100'}
+                    ${hasTasks ? 'has-tasks' : ''}`;
+                
+                day.innerHTML = `<span>${i}</span>`;
+                day.onclick = () => filterByDate(dayDateStr);
+                grid.appendChild(day);
+            }
+        }
+
+        function changeMonth(delta) {
+            currentViewDate.setMonth(currentViewDate.getMonth() + delta);
+            renderCalendar();
+            lucide.createIcons();
+        }
+
+        function showAlert(title, body, isError = false) {
+            const modal = document.getElementById('alert-modal');
+            const iconContainer = document.getElementById('alert-icon');
+            
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-body').innerText = body;
+            
+            if (isError) {
+                iconContainer.className = "bg-red-100 p-2 rounded-lg text-red-600";
+                iconContainer.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5"></i>';
+            } else {
+                iconContainer.className = "bg-earth-200 p-2 rounded-lg text-earth-900";
+                iconContainer.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i>';
+            }
+            
+            lucide.createIcons();
+            modal.classList.remove('translate-y-20', 'opacity-0');
+            modal.classList.add('pointer-events-auto');
+            setTimeout(() => { 
+                modal.classList.add('translate-y-20', 'opacity-0'); 
+                modal.classList.remove('pointer-events-auto');
+            }, 3000);
+        }
+
+        function updateGlobalTime() {
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            document.getElementById('current-date-nav').innerText = new Date().toLocaleDateString('es-ES', options);
+        }
+
+        function saveData() {
+            localStorage.setItem('smalt_sync_tasks_keep_v1', JSON.stringify(tasks));
+        }
+    </script>
+</body>
+</html>
